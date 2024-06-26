@@ -5,51 +5,194 @@
     <title>Agent Chat</title>
     <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
     <style>
-        .message {
-            margin-bottom: 10px;
+        /* General styling for the body */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            color: #333;
         }
+
+        /* Styling for the main heading */
+        h1 {
+            color: #444;
+            margin-bottom: 20px;
+        }
+
+        /* Container for the entire chat area */
+        #chat-container {
+            width: 80%;
+            max-width: 800px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        /* Container for the chat history */
         #chat {
             max-height: 400px;
             overflow-y: auto;
-            border: 1px solid #ccc;
+            border-bottom: 1px solid #ccc;
+            padding: 20px;
+            background-color: #fafafa;
+        }
+
+        /* General styling for messages */
+        .message {
+            margin-bottom: 10px;
             padding: 10px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+        }
+
+        /* Colors for different agents */
+        .Shakespeare {
+            background-color: #e1f5fe;
+        }
+
+        .MarkTwain {
+            background-color: #ffe0b2;
+        }
+
+        .GrouchoMarx {
+            background-color: #d3ffd3;
+        }
+
+        .Yoda {
+            background-color: #ffd1dc;
+        }
+
+        .HomerSimpson {
+            background-color: #fff9c4;
+        }
+
+        .MrKitty {
+            background-color: #A9A9A9;
+        }
+
+        /* Styling for the input area */
+        .input-container {
+            display: flex;
+            padding: 10px;
+            background-color: #fff;
+        }
+
+        /* Styling for the input field */
+        #topic_input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-right: 10px;
+            font-size: 16px;
+        }
+
+        /* Styling for the start button */
+        #start_button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        /* Hover effect for the start button */
+        #start_button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Styling for bold text in messages */
+        .message strong {
+            font-weight: bold;
+        }
+
+
+        /* Styling for the text content in messages */
+        .message-content {
+            flex: 1;
         }
     </style>
 </head>
 <body>
-    <h1>Chat with Agents</h1>
+<h1>Chat with Agents!</h1>
+<div id="chat-container">
     <div id="chat"></div>
-    <input type="text" id="topic_input" placeholder="Enter a topic..." autocomplete="off"/>
-    <button onclick="startConversation()">Start Conversation</button>
+    <div class="input-container">
+        <input type="text" id="topic_input" placeholder="Enter a topic..." autocomplete="off"/>
+        <button id="start_button" onclick="startConversation()">Start Conversation</button>
+    </div>
+</div>
 
-    <script>
-        var socket = io.connect('http://127.0.0.1:5000');
-        var currentMessageContainer = null;
-        var currentRole = null;
+<script>
+    // Connect to the WebSocket server
+    var socket = io.connect('http://127.0.0.1:5000');
+    var currentMessageContainer = null;
+    var currentRole = null;
 
-        socket.on('new_message', function(msg) {
-            var chat = document.getElementById('chat');
+    // Function to format the current time
+    function getCurrentFormattedTime() {
+        const now = new Date();
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = String(now.getMonth() + 1).padStart(2, '0'); // Months are zero-indexed
+        const year = now.getFullYear();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        return `${day}/${month}/${year} ${hours}:${minutes}`;
+    }
 
-            // Check if the role has changed or if there is no current message container
-            if (currentRole !== msg.role || !currentMessageContainer) {
-                // Create a new message container for each new message
-                currentMessageContainer = document.createElement('div');
-                currentMessageContainer.className = 'message';
-                chat.appendChild(currentMessageContainer);
-                currentRole = msg.role;
-            }
+    // Event handler for receiving new messages from the WebSocket server
+    socket.on('new_message', function(msg) {
+        // Get the chat container element where messages are displayed
+        var chat = document.getElementById('chat');
 
-            // Update the current message container with the new content
-            currentMessageContainer.textContent = `${msg.role}: ${msg.content}`;
-            chat.scrollTop = chat.scrollHeight;  // Scroll to the bottom
-        });
+        // Check if the role has changed or if there is no current message container
+        // This ensures a new message container is created for each unique agent or when the role changes
+        if (currentRole !== msg.role || !currentMessageContainer) {
+            currentMessageContainer = document.createElement('div');    // Create a new message container (div element) for the new message
+            currentMessageContainer.className = 'message ' + msg.role.replace(/\s+/g, '');  // Set the class name of the message container to include the 'message' class and the agent's role (name)
 
-        function startConversation() {
-            var input = document.getElementById('topic_input');
-            var topic = input.value;
-            socket.emit('start_conversation', {topic: topic});
-            input.value = '';
+            // Create an img element for the avatar
+            var avatar = document.createElement('img');
+            avatar.className = 'avatar';
+
+            // Create a div element for the message content
+            var messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+
+            // Append the avatar and message content to the message container
+            currentMessageContainer.appendChild(avatar);
+            currentMessageContainer.appendChild(messageContent);
+
+            // Append the new message container to the chat container
+            chat.appendChild(currentMessageContainer);
+            // Update the current role to the new message's role
+            currentRole = msg.role;
         }
-    </script>
+
+        // Update the current message container with the new message content
+        // The agent's role is displayed in bold, followed by the message content
+        var messageContent = currentMessageContainer.querySelector('.message-content');
+        messageContent.innerHTML = `<strong>${msg.role}:</strong> ${msg.content} <br><span style="font-size: 0.8em; color: #999;">${getCurrentFormattedTime()}</span>`;
+        chat.scrollTop = chat.scrollHeight; // Automatically scroll to the bottom of the chat container to show the latest message
+    });
+
+    // Function to start a new conversation
+    function startConversation() {
+        var input = document.getElementById('topic_input');
+        var topic = input.value;
+        socket.emit('start_conversation', {topic: topic});
+        input.value = '';
+    }
+</script>
 </body>
 </html>

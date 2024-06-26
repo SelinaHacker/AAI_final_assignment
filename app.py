@@ -7,7 +7,7 @@ import threading
 import time
 import random
 import json
-import csv  # Import the CSV module
+import csv
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -34,11 +34,10 @@ class LMStudioAgent:
 
     def respond(self, message):
         self.history.append({"role": "user", "content": message})
-        
-        # Calculate the number of tokens to include in the context
+
         context_tokens = int(TOKEN_LIMIT * 0.5)
         context = self._get_context(context_tokens)
-        
+
         completion = self.client.chat.completions.create(
             model=self.model,
             messages=context,
@@ -53,21 +52,15 @@ class LMStudioAgent:
                 socketio.emit('new_message', {'role': self.name, 'content': new_message["content"]})
 
         self.history.append(new_message)
-        
-        # Save the final message to a CSV file
-        # try to save the message to a csv file, in case it fails, it will not break the code
+
         try:
             self.save_message_to_csv(new_message["content"])
-        except:
-            # if saving still fails, print an error message
-            print("Error saving message to CSV")
-            # skip the line and continue
-            pass
-        
+        except Exception as e:
+            print(f"Error saving message to CSV: {e}")
+
         return new_message["content"]
 
     def _get_context(self, context_tokens):
-        # Create a context with the last `context_tokens` tokens
         context = []
         total_tokens = 0
         for message in reversed(self.history):
@@ -83,11 +76,18 @@ class LMStudioAgent:
             writer = csv.writer(file)
             writer.writerow([self.name, message])
 
-def load_agents_from_config(config_file):
-    with open(config_file, 'r') as f:
+def load_config():
+    config_path = 'agents_config.json'
+    with open(config_path, 'r') as f:
         config = json.load(f)
+        print("Loaded configuration from:", config_path)
+        print("Configuration content:", config)
+        return config
+
+def load_agents_from_config(config):
     agents = []
     for agent_config in config:
+        print(f"Loading agent: {agent_config['name']} with model: {agent_config['model']}")
         agent = LMStudioAgent(
             name=agent_config["name"],
             api_url=agent_config["api_url"],
@@ -99,7 +99,9 @@ def load_agents_from_config(config_file):
         agents.append(agent)
     return agents
 
-agents = load_agents_from_config('agents_config.json')
+agents_config = load_config()
+agents = load_agents_from_config(agents_config)
+print("Loaded agents:", [agent.name for agent in agents])
 
 @app.route('/')
 def index():
@@ -119,7 +121,7 @@ def handle_start_conversation(data):
 def run_conversation(agents, initial_message, num_turns=15):
     message = initial_message
     last_agent = None
-    
+
     for _ in range(num_turns):
         available_agents = [agent for agent in agents if agent != last_agent]
         agent = random.choice(available_agents)
